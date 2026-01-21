@@ -1,263 +1,269 @@
 /**
- * 진담카페 챌린지 v2.6 - 옵션 로직 최적화 버전
+ * 진담카페 챌린지 v2.8 - 통합 프리미엄 스크립트
  */
 
-const layers = {
-    video: document.getElementById('layer-video'),
-    chat: document.getElementById('layer-chat'),
-    kiosk: document.getElementById('layer-kiosk')
-};
-
+const layers = { video: document.getElementById('layer-video'), chat: document.getElementById('layer-chat'), kiosk: document.getElementById('layer-kiosk') };
 const video = document.getElementById('opening-video');
 const chatLog = document.getElementById('chat-log');
 const choiceArea = document.getElementById('choice-area');
 const timerDisplay = document.getElementById('timer-display');
-const cartCount = document.getElementById('cart-count');
-const cartDetailLayer = document.getElementById('cart-detail-layer');
-const cartListContainer = document.getElementById('cart-list-container');
+const cartCountDisplay = document.getElementById('cart-count');
 const modalLayer = document.getElementById('modal-layer');
 const modalBox = document.getElementById('modal-box');
+const cartDetailLayer = document.getElementById('cart-detail-layer');
+const cartListContainer = document.getElementById('cart-list-container');
 
 let cart = [];
 let currentMenu = "";
 let currentOptions = { temp: "ICE", ice: "보통", shot: 1 };
-let selectedMission = null;
-let extraMission = null;
 let isSuddenPhase = false; 
 let timeLeft = 60;
 let timerInterval = null;
+let inputPhone = "010"; // 포인트 입력용 초기값
 
-// --- [1] 레이어 및 초기화 ---
+// --- [1] 게임 레이어 및 비디오 제어 ---
 function showLayer(name) {
-    Object.values(layers).forEach(l => { 
-        l.classList.remove('active'); 
-        l.style.display = 'none'; 
-    });
-    layers[name].classList.add('active'); 
-    layers[name].style.display = 'flex';
+    Object.values(layers).forEach(l => { l.classList.remove('active'); l.style.display = 'none'; });
+    layers[name].classList.add('active'); layers[name].style.display = 'flex';
     if (name === 'kiosk') startTimer();
 }
 
-document.getElementById('start-btn').onclick = () => {
-    video.play().catch(() => {});
-    document.getElementById('start-btn').style.display = 'none';
-};
-
-video.onended = () => {
-    showLayer('chat');
-    renderDialogue('start');
-};
+document.getElementById('start-btn').onclick = () => { video.play(); document.getElementById('start-btn').style.display = 'none'; };
+video.onended = () => { showLayer('chat'); renderDialogue('start'); };
 
 // --- [2] 분기형 대화 시스템 ---
 const dialogueData = {
-    "start": {
-        text: "아 춥다~ 오늘 날씨 장난 아니다! 너는 오늘 뭐 마실거야?",
-        choices: [
-            { text: "난 한국스타일로.. 역시 '얼죽아'지!", next: "mission_iced" },
-            { text: "헐~ 난 너무 추워서 따뜻한 게 좋아.", next: "mission_warm" }
-        ]
-    },
-    "mission_iced": {
-        text: "너 한국인 다 되었네! 그럼 난 아이스 아메리카노. 샷 하나 추가해주고(총 2샷), 얼음은 조금만 넣어줘!",
-        choices: [{ text: "오케이! 금방 주문해올게.", next: "go_kiosk", action: () => { selectedMission = { name: "아메리카노", temp: "ICE", ice: "적게", shot: 2 }; } }]
-    },
-    "mission_warm": {
-        text: "그치? 난 따뜻한 카페라떼 마실래. 기본으로 부탁해!",
-        choices: [{ text: "알겠어! 따뜻한 라떼 주문해올게.", next: "go_kiosk", action: () => { selectedMission = { name: "카페라떼", temp: "HOT", ice: "", shot: 1 }; } }]
-    },
-    "sudden_start": {
-        text: "잠깐만! 결제하려구? 아 맞다, 나 갑자기 배가 좀 고픈 것 같아... 😅",
-        choices: [{ text: "응? 왜? 뭐 더 먹고 싶어?", next: "sudden_request" }]
-    },
-    "sudden_request": {
-        text: "여기 초코쿠키가 그렇게 맛있다더라! 커피랑 같이 먹게 쿠키 하나만 더 추가해줄 수 있어? 🍪",
-        choices: [{ text: "당연하지! 쿠키 하나 더 담아올게.", next: "go_kiosk_again", action: () => { extraMission = { name: "초코쿠키" }; } }]
-    }
+    "start": { text: "아 춥다~ 오늘 날씨 장난 아니다! 너는 오늘 뭐 마실 거야?", choices: [{ text: "오늘은 추우니까 넌 따뜻한 것 마실 거지?", next: "q2" }] },
+    "q2": { text: "아니? 나는 얼어 죽어도 아이스 아메리카노를 마실 거야.", choices: [{ text: "헐~ 나는 따뜻한 아메리카노를 마실래.", next: "q3" }] },
+    "q3": { text: "내 거는 연하게(1샷), 얼음량은 많이 해서 주문해줘.", choices: [{ text: "나는 샷을 하나 추가할게(2샷).", next: "q4" }] },
+    "q4": { text: "전에 키오스크에서 주문해본 적 있어?", choices: [{ text: "아니~ 처음이야! 근데 나 혼자 할 수 있을 것 같아.", next: "go_kiosk" }] },
+    "sudden_start": { text: "잠깐! 우리 디저트도 시키자.", choices: [{ text: "그래! 초코케이크 하나 시켜서 나눠먹자.", next: "go_kiosk_again" }] }
 };
 
 function addMessage(side, text) {
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `msg ${side}`;
-    if (side === 'left') {
-        msgDiv.innerHTML = `<div class="friend-profile">👩</div><div class="bubble">${text}</div>`;
-    } else {
-        msgDiv.innerHTML = `<div class="bubble">${text}</div>`;
-    }
-    chatLog.appendChild(msgDiv);
-    chatLog.scrollTop = chatLog.scrollHeight;
+    const msg = document.createElement('div'); msg.className = `msg ${side}`;
+    msg.innerHTML = side === 'left' ? `<div class="friend-profile">👩</div><div class="bubble">${text}</div>` : `<div class="bubble">${text}</div>`;
+    chatLog.appendChild(msg); chatLog.scrollTop = chatLog.scrollHeight;
 }
 
 function renderDialogue(key) {
-    if (key === 'go_kiosk' || key === 'go_kiosk_again') {
-        setTimeout(() => showLayer('kiosk'), 800);
-        return;
-    }
+    if (key === 'go_kiosk' || key === 'go_kiosk_again') { setTimeout(() => showLayer('kiosk'), 800); return; }
     const node = dialogueData[key];
-    setTimeout(() => addMessage('left', node.text), 500);
+    setTimeout(() => addMessage('left', node.text), 400);
     choiceArea.innerHTML = "";
     node.choices.forEach(c => {
-        const btn = document.createElement('button');
-        btn.className = "choice-btn"; 
-        btn.innerText = c.text;
-        btn.onclick = () => {
-            addMessage('right', c.text);
-            choiceArea.innerHTML = "";
-            if (c.action) c.action();
-            renderDialogue(c.next);
-        };
+        const btn = document.createElement('button'); btn.className = "choice-btn"; btn.innerText = c.text;
+        btn.onclick = () => { addMessage('right', c.text); choiceArea.innerHTML = ""; renderDialogue(c.next); };
         choiceArea.appendChild(btn);
     });
 }
 
-// --- [3] 타이머 및 결제 로직 ---
-function startTimer() {
-    if (timerInterval) return; 
-    timerInterval = setInterval(() => {
-        timeLeft--; 
-        timerDisplay.innerText = timeLeft;
-        if (timeLeft <= 0) { clearInterval(timerInterval); gameOver(); }
-    }, 1000);
-}
-
-function handlePaymentClick() {
-    if (cart.length === 0) return;
-    if (!isSuddenPhase) {
-        isSuddenPhase = true;
-        clearInterval(timerInterval); timerInterval = null;
-        showLayer('chat');
-        renderDialogue('sudden_start');
-    } else {
-        finalCheck();
-    }
-}
-
-function finalCheck() {
-    const friendOrder = cart.find(i => 
-        i.name === selectedMission.name && 
-        i.temp === selectedMission.temp && 
-        i.shot === selectedMission.shot &&
-        (selectedMission.temp === 'HOT' ? true : i.ice === selectedMission.ice)
-    );
-    const hasExtra = extraMission ? cart.find(i => i.name === extraMission.name) : true;
-    const isSuccess = friendOrder && hasExtra && cart.length >= (extraMission ? 3 : 2);
-
-    modalLayer.style.display = "flex";
-    if (isSuccess) {
-        clearInterval(timerInterval);
-        modalBox.innerHTML = `<h2>🎉 주문 성공!</h2><p style="margin:15px 0;">정확하게 주문했어요! 민지가 정말 기뻐하네요.</p><button onclick="location.reload()" class="btn-primary">처음부터 다시 하기</button>`;
-    } else {
-        document.getElementById('layer-kiosk').classList.add('shake-ani');
-        setTimeout(() => document.getElementById('layer-kiosk').classList.remove('shake-ani'), 500);
-        modalBox.innerHTML = `<h2>🤔 주문이 틀렸어요!</h2><div class="fail-hint">민지의 주문: <strong>${selectedMission.name} (${selectedMission.temp})</strong>${extraMission ? ' + <strong>' + extraMission.name + '</strong>' : ''}<br>옵션을 다시 확인하고 본인 음료도 꼭 담아주세요!</div><button onclick="retry()" class="btn-primary">수정하러 가기</button>`;
-    }
-}
-
-function retry() { modalLayer.style.display = 'none'; openCart(); }
-function gameOver() { modalLayer.style.display = "flex"; modalBox.innerHTML = `<h2>😫 시간 초과!</h2><button onclick="location.reload()" class="btn-primary">다시 시작</button>`; }
-
-// --- [4] 키오스크 및 옵션 제어 (HOT/ICE 로직 포함) ---
+// --- [3] 키오스크 및 옵션 제어 ---
 function switchTab(e, cat) {
-    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.menu-grid').forEach(g => g.classList.remove('active'));
-    e.currentTarget.classList.add('active'); 
-    document.getElementById(cat + '-menu').classList.add('active');
+    e.currentTarget.classList.add('active'); document.getElementById(cat + '-menu').classList.add('active');
 }
 
 function openOptions(menu) {
-    currentMenu = menu; 
-    document.getElementById('opt-menu-name').innerText = menu;
-    const isCoffee = ["아메리카노", "카페라떼", "바닐라 라떼"].includes(menu);
-    const isDessert = ["초코쿠키", "소금빵"].includes(menu);
-    
-    // 레이아웃 초기화
-    document.getElementById('temp-row').style.display = isDessert ? 'none' : 'block';
+    currentMenu = menu; document.getElementById('opt-menu-name').innerText = menu;
+    const isCoffee = menu === "아메리카노";
+    const isSpecial = ["초코케이크", "생딸기우유"].includes(menu);
+    document.getElementById('temp-row').style.display = isSpecial ? 'none' : 'block';
     document.getElementById('shot-row').style.display = isCoffee ? 'block' : 'none';
-    
-    document.getElementById('option-sheet').style.display = "flex";
-    setTimeout(() => document.getElementById('option-sheet').classList.add('active'), 10);
-    
-    // 초기 기본값 설정
-    currentOptions = { 
-        temp: isDessert ? "" : "ICE", 
-        ice: isDessert ? "" : "보통", 
-        shot: isCoffee ? 1 : 0 
-    };
+    document.getElementById('option-sheet').classList.add('active'); 
+    currentOptions = { temp: (isSpecial) ? "ICE" : "ICE", ice: (isSpecial) ? "" : "보통", shot: isCoffee ? 1 : 0 };
+    updateOptionUI();
+}
+
+function setOption(type, val) {
+    currentOptions[type] = val;
+    document.querySelectorAll(`[data-type="${type}"]`).forEach(b => b.classList.toggle('selected', b.dataset.value === val));
+    if (type === 'temp') currentOptions.ice = (val === 'HOT') ? "" : "보통";
     updateOptionUI();
 }
 
 function updateOptionUI() {
-    const isDessert = ["초코쿠키", "소금빵"].includes(currentMenu);
-    
-    // 샷 수치 업데이트
-    document.getElementById('shot-val').innerText = currentOptions.shot;
-    
-    // 버튼 선택 상태 업데이트
-    document.querySelectorAll('.tgl-btn').forEach(btn => {
-        btn.classList.toggle('selected', btn.dataset.value === currentOptions[btn.dataset.type]);
-    });
-
-    // [핵심 로직] HOT을 선택했거나 디저트인 경우 얼음량(ice-row) 숨기기
     const iceRow = document.getElementById('ice-row');
-    if (currentOptions.temp === 'HOT' || isDessert) {
-        iceRow.style.display = 'none';
-    } else {
-        iceRow.style.display = 'block';
-    }
+    const isSpecial = ["초코케이크", "생딸기우유"].includes(currentMenu);
+    iceRow.style.display = (currentOptions.temp === 'HOT' || isSpecial) ? 'none' : 'block';
+    document.getElementById('shot-val').innerText = currentOptions.shot;
 }
 
-document.querySelectorAll('.tgl-btn').forEach(btn => {
-    btn.onclick = function() {
-        const type = this.dataset.type;
-        const val = this.dataset.value;
-        
-        currentOptions[type] = val;
-        
-        // 온도를 HOT으로 바꾸면 얼음량 데이터를 비움
-        if (type === 'temp') {
-            if (val === 'HOT') {
-                currentOptions.ice = "";
-            } else {
-                currentOptions.ice = "보통"; // ICE로 바꾸면 다시 '보통'으로 초기화
-            }
-        }
-        updateOptionUI();
-    };
-});
-
-function changeShot(n) { 
-    currentOptions.shot = Math.max(0, Math.min(5, currentOptions.shot + n)); 
-    updateOptionUI(); 
-}
-
-// --- [5] 장바구니 및 기타 함수 ---
-function addToCart() { 
-    cart.push({ name: currentMenu, ...currentOptions }); 
-    cartCount.innerText = cart.length; 
-    closeSheet(); 
-}
-
-function closeSheet() { 
-    document.getElementById('option-sheet').classList.remove('active'); 
-    setTimeout(() => document.getElementById('option-sheet').style.display = 'none', 300); 
-}
-
+function changeShot(n) { currentOptions.shot = Math.max(0, Math.min(5, currentOptions.shot + n)); document.getElementById('shot-val').innerText = currentOptions.shot; }
+function addToCart() { cart.push({ ...currentOptions, name: currentMenu }); cartCountDisplay.innerText = cart.length; closeSheet(); }
+function closeSheet() { document.getElementById('option-sheet').classList.remove('active'); }
 function closeSheetOutside(e) { if(e.target.id === 'option-sheet') closeSheet(); }
 
+// --- [4] 장바구니 관리 ---
 function openCart() {
-    cartListContainer.innerHTML = cart.length === 0 ? "<p style='padding:40px; color:#bbb; text-align:center;'>장바구니가 비어 있습니다.</p>" : "";
-    cart.forEach((i, idx) => {
-        const div = document.createElement('div'); 
-        div.className = 'cart-item';
-        div.innerHTML = `<div class="c-info"><span class="c-name">${i.name}</span><span class="c-opt">${i.temp} ${i.ice} ${i.shot ? i.shot+'샷' : ''}</span></div><button class="btn-del" onclick="removeFromCart(${idx})">✕</button>`;
+    cartListContainer.innerHTML = cart.length === 0 ? "<p style='padding:50px; color:#bbb; text-align:center;'>장바구니가 비어 있습니다.</p>" : "";
+    cart.forEach((item, idx) => {
+        const div = document.createElement('div'); div.className = 'cart-item';
+        div.innerHTML = `<div class="c-info"><span class="c-name">${item.name}</span><span class="c-opt">${item.temp} ${item.ice} ${item.shot}샷</span></div><button class="btn-del" onclick="removeFromCart(${idx})">✕</button>`;
         cartListContainer.appendChild(div);
     });
     cartDetailLayer.style.display = 'flex';
 }
+function closeCart() { cartDetailLayer.style.display = 'none'; }
+function removeFromCart(idx) { cart.splice(idx, 1); cartCountDisplay.innerText = cart.length; openCart(); }
 
-function removeFromCart(idx) { 
-    cart.splice(idx, 1); 
-    cartCount.innerText = cart.length; 
-    openCart(); 
+// --- [5] 최종 검증 및 결제 프로세스 ---
+function handlePaymentClick() {
+    if (cart.length === 0) return;
+    if (!isSuddenPhase) { isSuddenPhase = true; if(timerInterval) clearInterval(timerInterval); showLayer('chat'); renderDialogue('sudden_start'); }
+    else { finalCheck(); }
 }
 
-function closeCart() { cartDetailLayer.style.display = 'none'; }
+function finalCheck() {
+    const minji = cart.find(i => i.name === "아메리카노" && i.temp === "ICE" && i.shot === 1 && i.ice === "많이");
+    const me = cart.find(i => i.name === "아메리카노" && i.temp === "HOT" && i.shot === 2);
+    const cake = cart.find(i => i.name === "초코케이크");
+
+    if (minji && me && cake) { showPointKeypad(); }
+    else {
+        layers.kiosk.classList.add('shake-ani'); setTimeout(() => layers.kiosk.classList.remove('shake-ani'), 500);
+        modalLayer.style.display = "flex";
+        modalBox.innerHTML = `<h2>😫 주문 확인</h2><p style="margin:20px 0;">미션과 주문이 다릅니다.<br>장바구니를 다시 확인해 주세요!</p><button class="btn-confirm-large" onclick="retry()">장바구니 수정</button>`;
+    }
+}
+
+function retry() { modalLayer.style.display = 'none'; openCart(); }
+
+// --- [6] 포인트 적립 키패드 (010 시작) ---
+function showPointKeypad() {
+    inputPhone = "010";
+    modalLayer.style.display = "flex";
+    renderKeypad();
+}
+
+function renderKeypad() {
+    modalBox.innerHTML = `
+        <h3 style="margin-bottom:10px;">포인트 적립</h3>
+        <p style="color:#888; font-size:0.9rem; margin-bottom:20px;">전화번호를 입력해 주세요.</p>
+        <div class="phone-display" id="phone-display">${formatPhone(inputPhone)}</div>
+        <div class="keypad">
+            ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="key" onclick="pressKey('${n}')">${n}</button>`).join('')}
+            <button class="key action" onclick="pressKey('C')">C</button>
+            <button class="key" onclick="pressKey('0')">0</button>
+            <button class="key enter" onclick="confirmPoints()">입력</button>
+        </div>
+        <button class="btn-secondary" onclick="showPaymentMethods()" style="margin-top:20px; border:none; background:none; color:#999; text-decoration:underline;">적립 안 함</button>
+    `;
+}
+
+function pressKey(k) {
+    if(k === 'C') inputPhone = "010";
+    else if(inputPhone.length < 11) inputPhone += k;
+    document.getElementById('phone-display').innerText = formatPhone(inputPhone);
+}
+
+function formatPhone(n) {
+    let s = n;
+    if(s.length > 3 && s.length <= 7) s = s.slice(0,3) + "-" + s.slice(3);
+    else if(s.length > 7) s = s.slice(0,3) + "-" + s.slice(3,7) + "-" + s.slice(7);
+    return s;
+}
+
+function confirmPoints() {
+    if(inputPhone.length === 11) showPaymentMethods();
+    else alert("번호를 끝까지 입력해 주세요!");
+}
+
+// --- [7] 결제 수단 선택 및 영수증 ---
+function showPaymentMethods() {
+    modalBox.innerHTML = `
+        <h3>결제 수단 선택</h3>
+        <div class="pay-methods">
+            <button class="pay-btn-item" onclick="processPayment('체크카드')">💳 체크카드</button>
+            <button class="pay-btn-item" onclick="processPayment('신용카드')">🏦 신용카드</button>
+        </div>
+        <div style="background:#f8f9fa; padding:15px; border-radius:15px; font-size:0.85rem; color:#666;">
+            📢 <b>현금 결제</b>는 카운터에서 도와드리겠습니다.
+        </div>
+    `;
+}
+
+function processPayment(method) {
+    modalBox.innerHTML = `<h2>${method} 결제 중</h2><p style="margin:20px 0;">카드를 투입구에 끝까지 넣어주세요.</p>`;
+    setTimeout(() => { clearInterval(timerInterval); showFinalReceipt(method); }, 2000);
+}
+
+function showFinalReceipt(method) {
+    const prices = {
+        "아메리카노": 4500,
+        "생강차": 5500,
+        "생딸기우유": 5800,
+        "초코케이크": 6500,
+        "소금빵": 3500
+    };
+
+    let total = 0;
+    let listHtml = "";
+
+    // 장바구니에 담긴 모든 품목을 하나의 리스트로 통합
+    cart.forEach(item => {
+        const p = prices[item.name] || 0;
+        total += p;
+
+        // 음료 여부 확인
+        const isBeverage = ["아메리카노", "생강차", "생딸기우유"].includes(item.name);
+        let displayName = `<strong>${item.name}</strong>`;
+
+        if (isBeverage) {
+            // 음료일 경우 상세 옵션을 괄호 안에 추가
+            let options = [];
+            options.push(item.temp.toLowerCase()); // ice 또는 hot
+            if (item.shot !== undefined && item.shot > 0) options.push(`샷 ${item.shot}개`);
+            if (item.ice) options.push(`얼음량 ${item.ice}`);
+            
+            displayName += `<br><span style="color:#666; font-size:0.75rem;">(${options.join(', ')})</span>`;
+        }
+
+        // 품명과 가격을 한 줄에 배치 (품명은 왼쪽, 가격은 오른쪽)
+        listHtml += `
+            <div style="display:flex; justify-content:space-between; align-items: flex-start; margin-bottom:12px; font-size:0.9rem;">
+                <div style="text-align:left; line-height:1.4;">${displayName}</div>
+                <div style="font-weight:700; white-space:nowrap; margin-left:10px;">${p.toLocaleString()}원</div>
+            </div>
+        `;
+    });
+
+    // 중앙 정렬 및 프리미엄 디자인 영수증 구성
+    modalBox.innerHTML = `
+        <div style="text-align:center;">
+            <h2 style="color:#2ecc71; margin-bottom:20px; font-weight:800;">✔ 결제 완료</h2>
+            
+            <div class="receipt" style="background:#fff; border:1px solid #ddd; padding:25px; border-radius:15px; box-shadow:inset 0 0 15px rgba(0,0,0,0.02); margin-bottom:20px;">
+                <p style="font-weight:900; font-size:1.3rem; border-bottom:2px solid #333; padding-bottom:15px; margin-bottom:20px; letter-spacing:2px;">JINDAM CAFE</p>
+                
+                <div style="min-height: 50px;">
+                    ${listHtml}
+                </div>
+                
+                <div style="border-top:1px dashed #aaa; margin-top:15px; padding-top:15px; font-weight:900; display:flex; justify-content:space-between; font-size:1.2rem; color:#000;">
+                    <span>총 결제금액</span>
+                    <span style="color:var(--accent);">${total.toLocaleString()}원</span>
+                </div>
+                
+                <div style="font-size:0.75rem; color:#999; margin-top:20px; text-align:left; line-height:1.6; border-top:1px solid #f5f5f5; padding-top:10px;">
+                    [결제 정보]<br>
+                    결제수단: ${method}<br>
+                    주문일시: ${new Date().toLocaleString()}<br>
+                    주문번호: JDM-${Math.floor(Date.now() / 100000)}
+                </div>
+            </div>
+
+            <div style="background:#fdf2f0; padding:25px; border-radius:25px; border:1px solid #ffedea; margin-bottom:20px;">
+                <span style="font-size:0.9rem; color:#e74c3c; font-weight:800; display:block; margin-bottom:10px;">주문 대기 번호</span>
+                <div style="font-size:3.5rem; font-weight:900; color:#e74c3c; line-height:1;">
+                    ${Math.floor(Math.random() * 101) + 100}
+                </div>
+                <p style="font-size:0.8rem; color:#999; margin-top:10px;">음료가 준비되면 번호를 호출해 드립니다.</p>
+            </div>
+
+            <button class="btn-confirm-large" onclick="location.reload()" style="box-shadow: 0 5px 15px rgba(61,43,31,0.3);">확인 (메인으로)</button>
+        </div>
+    `;
+}
+function startTimer() { timerInterval = setInterval(() => { timeLeft--; timerDisplay.innerText = timeLeft; if(timeLeft<=0) location.reload(); }, 1000); }
