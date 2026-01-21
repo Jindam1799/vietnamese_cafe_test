@@ -3,28 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>진담카페 챌린지 v2.5</title>
+    <title>JINDAM CAFE KIOSK</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </head>
 <body>
 
 <div id="game-container">
     <div id="layer-video" class="layer active">
-        <video id="opening-video" playsinline>
-            <source src="assets/opening_cafe.mp4" type="video/mp4">
-        </video>
+        <video id="opening-video" playsinline><source src="assets/opening_cafe.mp4" type="video/mp4"></video>
         <div class="video-overlay" id="start-btn">
+            <div class="brand-logo">JINDAM</div>
             <div class="play-btn">START</div>
-            <p>화면을 터치해 카페로 입장하세요</p>
+            <p>화면을 터치해 입장하세요</p>
         </div>
     </div>
 
     <div id="layer-chat" class="layer">
         <header class="chat-header">
-            <span class="back">〈</span>
-            <span class="title">민지 (Friend)</span>
-            <div class="header-icons">🔍 ☰</div>
+            <span class="chat-title">민지 (Friend)</span>
         </header>
         <div id="chat-log" class="chat-log"></div>
         <div id="choice-area" class="choice-area"></div>
@@ -32,116 +28,103 @@
 
     <div id="layer-kiosk" class="layer">
         <header class="kiosk-header">
-            <div class="header-top">
-                <div class="timer-badge">
-                    <span class="timer-icon">⏱</span>
-                    <span id="timer-display">60</span>
-                </div>
-            </div>
-            <h1>JINDAM CAFE</h1>
+            <div class="timer-badge">⏱ <span id="timer-display">60</span>s</div>
+            <h1 class="logo-text">JINDAM CAFE</h1>
         </header>
         
         <nav class="category-tabs">
-            <button class="tab active" onclick="switchTab(event, 'coffee')">커피</button>
-            <button class="tab" onclick="switchTab(event, 'noncoffee')">논커피</button>
-            <button class="tab" onclick="switchTab(event, 'dessert')">디저트</button>
+            <button class="tab-btn active" onclick="switchTab(event, 'coffee')">커피</button>
+            <button class="tab-btn" onclick="switchTab(event, 'noncoffee')">논커피</button>
+            <button class="tab-btn" onclick="switchTab(event, 'dessert')">디저트</button>
         </nav>
 
-        <section class="menu-view">
+        <section class="menu-scroll-view">
             <div id="coffee-menu" class="menu-grid active">
                 <div class="menu-card" onclick="openOptions('아메리카노')">
                     <div class="m-icon">☕</div>
-                    <div class="m-info"><span class="m-name">아메리카노</span><span class="m-price">4,500원</span></div>
-                </div>
-                <div class="menu-card" onclick="openOptions('카페라떼')">
-                    <div class="m-icon">🥛</div>
-                    <div class="m-info"><span class="m-name">카페라떼</span><span class="m-price">5,000원</span></div>
-                </div>
-                <div class="menu-card" onclick="openOptions('바닐라 라떼')">
-                    <div class="m-icon">🍯</div>
-                    <div class="m-info"><span class="m-name">바닐라 라떼</span><span class="m-price">5,500원</span></div>
+                    <div class="m-name">아메리카노</div>
+                    <div class="m-price">4,500원</div>
                 </div>
             </div>
             <div id="noncoffee-menu" class="menu-grid">
-                <div class="menu-card" onclick="openOptions('레몬 에이드')">
-                    <div class="m-icon">🍋</div>
-                    <div class="m-info"><span class="m-name">레몬 에이드</span><span class="m-price">5,500원</span></div>
+                <div class="menu-card" onclick="openOptions('생강차')">
+                    <div class="m-icon">🫖</div>
+                    <div class="m-name">생강차</div>
+                    <div class="m-price">5,500원</div>
                 </div>
-                <div class="menu-card" onclick="openOptions('딸기 라떼')">
+                <div class="menu-card" onclick="openOptions('생딸기우유')">
                     <div class="m-icon">🍓</div>
-                    <div class="m-info"><span class="m-name">딸기 라떼</span><span class="m-price">5,800원</span></div>
+                    <div class="m-name">생딸기우유</div>
+                    <div class="m-price">5,800원</div>
                 </div>
             </div>
             <div id="dessert-menu" class="menu-grid">
-                <div class="menu-card" onclick="openOptions('초코쿠키')">
-                    <div class="m-icon">🍪</div>
-                    <div class="m-info"><span class="m-name">초코쿠키</span><span class="m-price">3,000원</span></div>
-                </div>
-                <div class="menu-card" onclick="openOptions('소금빵')">
-                    <div class="m-icon">🥐</div>
-                    <div class="m-info"><span class="m-name">소금빵</span><span class="m-price">3,500원</span></div>
+                <div class="menu-card" onclick="openOptions('초코케이크')">
+                    <div class="m-icon">🍰</div>
+                    <div class="m-name">초코케이크</div>
+                    <div class="m-price">6,500원</div>
                 </div>
             </div>
         </section>
 
-        <footer class="cart-bar">
-            <div class="cart-info-btn" onclick="openCart()">
-                <span class="cart-icon">🛒</span>
-                <span id="cart-count">0</span>
+        <footer class="bottom-nav">
+            <div class="cart-trigger" onclick="openCart()">
+                <div class="cart-circle">🛒<span id="cart-count">0</span></div>
+                <span class="cart-txt">장바구니 보기</span>
             </div>
-            <button class="pay-btn" onclick="handlePaymentClick()">결제하기</button>
+            <button class="checkout-btn" onclick="handlePaymentClick()">결제하기</button>
         </footer>
 
         <div id="cart-detail-layer" class="modal-dim">
-            <div class="modal-box cart-popup">
+            <div class="modal-box side-up">
                 <div class="popup-header">
-                    <h3>주문 내역 확인</h3>
-                    <button class="close-circle" onclick="closeCart()">✕</button>
+                    <h3>주문 내역</h3>
+                    <button class="close-icon" onclick="closeCart()">✕</button>
                 </div>
-                <div id="cart-list-container" class="cart-list"></div>
-                <button class="btn-secondary" onclick="closeCart()">메뉴 더 추가하기</button>
+                <div id="cart-list-container" class="item-list-view"></div>
+                <button class="btn-confirm" onclick="closeCart()">메뉴 더 담기</button>
             </div>
         </div>
 
         <div id="option-sheet" class="sheet-overlay" onclick="closeSheetOutside(event)">
             <div class="sheet-box">
-                <div class="sheet-handle"></div>
+                <div class="sheet-bar"></div>
                 <div class="sheet-header">
                     <h3 id="opt-menu-name">메뉴명</h3>
-                    <button class="close-circle" onclick="closeSheet()">✕</button>
+                    <button class="close-icon" onclick="closeSheet()">✕</button>
                 </div>
                 <div class="opt-content">
-                    <div class="opt-row" id="temp-row">
-                        <label>온도 선택</label>
-                        <div class="toggle-group">
-                            <button class="tgl-btn" data-type="temp" data-value="HOT">HOT</button>
-                            <button class="tgl-btn selected" data-type="temp" data-value="ICE">ICE</button>
+                    <div class="opt-group" id="temp-row">
+                        <label>온도</label>
+                        <div class="pill-group">
+                            <button class="pill" data-type="temp" data-value="HOT" onclick="setOption('temp','HOT')">HOT</button>
+                            <button class="pill selected" data-type="temp" data-value="ICE" onclick="setOption('temp','ICE')">ICE</button>
                         </div>
                     </div>
-                    <div class="opt-row" id="ice-row">
+                    <div class="opt-group" id="ice-row">
                         <label>얼음량</label>
-                        <div class="toggle-group">
-                            <button class="tgl-btn" data-type="ice" data-value="많이">많이</button>
-                            <button class="tgl-btn selected" data-type="ice" data-value="보통">보통</button>
-                            <button class="tgl-btn" data-type="ice" data-value="적게">적게</button>
+                        <div class="pill-group">
+                            <button class="pill" data-type="ice" data-value="많이" onclick="setOption('ice','많이')">많이</button>
+                            <button class="pill selected" data-type="ice" data-value="보통" onclick="setOption('ice','보통')">보통</button>
                         </div>
                     </div>
-                    <div class="opt-row" id="shot-row">
+                    <div class="opt-group" id="shot-row">
                         <label>샷 추가</label>
-                        <div class="stepper-ui">
+                        <div class="stepper">
                             <button onclick="changeShot(-1)">-</button>
                             <span id="shot-val">1</span>
                             <button onclick="changeShot(1)">+</button>
                         </div>
                     </div>
                 </div>
-                <button class="btn-primary" onclick="addToCart()">장바구니 담기</button>
+                <button class="btn-confirm-large" onclick="addToCart()">장바구니 담기</button>
             </div>
         </div>
     </div>
 
     <div id="modal-layer" class="modal-dim">
-        <div id="modal-box" class="modal-box"></div>
+        <div id="modal-box" class="modal-box pop-in">
+            </div>
     </div>
 </div>
 
